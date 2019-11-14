@@ -1,6 +1,5 @@
 package nextstep.di.factory.domain;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import nextstep.di.factory.util.BeanFactoryUtils;
 import nextstep.di.factory.util.ReflectionUtils;
@@ -32,34 +31,65 @@ public class AnnotationScanner {
 
     public void scan(Object... basePackage) {
         reflections = new Reflections(basePackage);
-        preInstantiateBeans = scanClass();
+        preInstantiateBeans = scanAnnotations();
 
-        for (Class<?> clazz : preInstantiateBeans) {
-            BeanDefinition beanDefinition = makeConstructorBean(clazz);
+        Set<Class<?>> instantiateBeans = preInstantiateBeans.stream()
+                .filter(clazz -> checkAnnotation(clazz))
+                .collect(Collectors.toSet());
+
+        for (Class<?> clazz : instantiateBeans) {
+            BeanDefinition beanDefinition = makeBean(clazz);
             beanFactory.addBeanDefinition(clazz, beanDefinition);
         }
     }
 
-    private ConstructorBean makeConstructorBean(Class<?> clazz) {
-        clazz = BeanFactoryUtils.findConcreteClass(clazz, preInstantiateBeans);
-        Constructor<?> constructor = BeanFactoryUtils.getInjectedConstructor(clazz);
-        if (constructor == null) {
-            return new ConstructorBean(clazz, ReflectionUtils.getDefaultConstructor(clazz), Collections.emptyList());
-        }
-
-        Class<?>[] parameterTypes = constructor.getParameterTypes();
-        if (parameterTypes.length == 0) {
-            return new ConstructorBean(clazz, constructor, Collections.emptyList());
-        }
-
-        List<BeanDefinition> parameters = Stream.of(parameterTypes)
-                .map(classType -> makeConstructorBean(classType))
-                .collect(Collectors.toList());
-
-        return new ConstructorBean(clazz, constructor, parameters);
+    private boolean checkAnnotation(Class<?> clazz) {
+        return ANNOTATIONS.stream()
+                .filter(annotation -> clazz.isAnnotationPresent(annotation))
+                .findAny()
+                .isPresent();
     }
 
-    private Set<Class<?>> scanClass() {
+    private ConstructorBean makeBean(Class<?> clazz) {
+        try {
+            clazz = BeanFactoryUtils.findConcreteClass(clazz, preInstantiateBeans);
+        } catch (IllegalStateException e) {
+            return null;
+        }
+        Constructor<?> injectedConstructor = BeanFactoryUtils.getInjectedConstructor(clazz);
+
+        // inject가 없고 다른 생성자가 없을 때
+        if (injectedConstructor == null) {
+            return getConstructor(clazz);
+        }
+
+        Class<?>[] parameterTypes = injectedConstructor.getParameterTypes();
+        if (parameterTypes.length == 0) {
+            return new ConstructorBean(clazz, injectedConstructor, Collections.emptyList());
+        }
+
+        List<BeanDefinition> parameters = makeParameterBeanDefinition(parameterTypes);
+
+        return new ConstructorBean(clazz, injectedConstructor, parameters);
+    }
+
+    private List<BeanDefinition> makeParameterBeanDefinition(Class<?>[] parameterTypes) {
+        return Stream.of(parameterTypes)
+                .map(classType -> makeBean(classType))
+                .filter(beanDefinition -> beanDefinition != null)
+                .collect(Collectors.toList());
+    }
+
+
+    private ConstructorBean getConstructor(Class<?> clazz) {
+        Constructor<?> constructor = ReflectionUtils.getDefaultConstructor(clazz);
+        if (constructor.getParameterTypes().length > 0) {
+            return new ConstructorBean(clazz, ReflectionUtils.getDefaultConstructor(clazz), makeParameterBeanDefinition(constructor.getParameterTypes()));
+        }
+        return new ConstructorBean(clazz, ReflectionUtils.getDefaultConstructor(clazz), Collections.emptyList());
+    }
+
+    private Set<Class<?>> scanAnnotations() {
         Set<Class<?>> beans = Sets.newHashSet();
         for (Class<? extends Annotation> annotation : ANNOTATIONS) {
             beans.addAll(reflections.getTypesAnnotatedWith(annotation));

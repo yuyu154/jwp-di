@@ -14,7 +14,7 @@ public class ConfigurationScannerTest {
 
     @Test
     public void getDataSourceTest() {
-        BeanFactory beanFactory = new BeanFactory2();
+        BeanFactory beanFactory = new BeanFactoryImpl();
         ConfigurationScanner configurationScanner = new ConfigurationScanner(beanFactory);
         configurationScanner.register(ExampleConfig.class);
         beanFactory.initialize();
@@ -25,7 +25,7 @@ public class ConfigurationScannerTest {
 
     @Test
     public void getMyJdbcTemplateTest() {
-        BeanFactory beanFactory = new BeanFactory2();
+        BeanFactory beanFactory = new BeanFactoryImpl();
         ConfigurationScanner configurationScanner = new ConfigurationScanner(beanFactory);
         configurationScanner.register(IntegrationConfig.class);
         beanFactory.initialize();
@@ -39,7 +39,7 @@ public class ConfigurationScannerTest {
 
     @Test
     public void singleInstanceTest() {
-        BeanFactory beanFactory = new BeanFactory2();
+        BeanFactory beanFactory = new BeanFactoryImpl();
         ConfigurationScanner configurationScanner = new ConfigurationScanner(beanFactory);
         configurationScanner.register(IntegrationConfig.class);
         beanFactory.initialize();

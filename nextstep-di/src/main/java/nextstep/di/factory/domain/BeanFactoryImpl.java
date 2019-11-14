@@ -11,13 +11,13 @@ import java.util.Set;
 
 import static java.util.stream.Collectors.toSet;
 
-public class BeanFactory2 implements BeanFactory {
-    private static final Logger logger = LoggerFactory.getLogger(BeanFactory2.class);
+public class BeanFactoryImpl implements BeanFactory {
+    private static final Logger logger = LoggerFactory.getLogger(BeanFactoryImpl.class);
     private Map<Class<?>, BeanDefinition> beanDefinitions = new HashMap<>();
 
     private Beans beans;
 
-    public BeanFactory2() {
+    public BeanFactoryImpl() {
         this.beans = new Beans();
     }
 
@@ -28,7 +28,7 @@ public class BeanFactory2 implements BeanFactory {
     @Override
     public void initialize() {
         for (Class<?> clazz : beanDefinitions.keySet()) {
-            logger.debug("{}를 생성할 때 에러난다", clazz);
+            logger.debug("{} construct...", clazz);
             beans.put(clazz, () -> makeInstance(beanDefinitions.get(clazz)));
         }
     }
